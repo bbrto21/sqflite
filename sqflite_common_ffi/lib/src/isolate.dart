@@ -4,6 +4,7 @@ import 'package:meta/meta.dart';
 import 'package:sqflite_common_ffi/src/method_call.dart';
 import 'package:sqflite_common_ffi/src/sqflite_ffi_exception.dart';
 
+import 'package:sqflite_common_ffi/src/tizen/setup.dart';
 import 'sqflite_ffi_impl.dart';
 
 bool _debug = false; // devWarning(true); // false;
@@ -66,6 +67,13 @@ Future<SqfliteIsolate> createIsolate() async {
 
 /// The isolate
 Future _isolate(SendPort sendPort) async {
+  // Note : This is a temporary way to run on Tizen
+  // I think this should be called inside sqfliteFfiInit, as originally intended,
+  // but I faced a problem that instances of plugins loaded from the main isolate are not shared with the child isolate.
+  // So I decided temporary to call tizenInit for a spawned isolate.
+  // I guess the setup implementation for windows seems to have the same potential problem.
+  tizenInit();
+
   // open our receive port. this is like turning on
   // our cellphone.
   var ourReceivePort = ReceivePort();

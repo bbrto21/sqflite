@@ -11,6 +11,7 @@ import 'package:sqflite_common_ffi/src/sqflite_import.dart';
 import 'package:sqlite3/sqlite3.dart' as ffi;
 import 'package:synchronized/extension.dart';
 import 'package:synchronized/synchronized.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'database_tracker.dart';
 import 'import.dart';
@@ -196,7 +197,7 @@ class _MultiInstanceLocker {
 extension SqfliteFfiMethodCallHandler on FfiMethodCall {
   /// Locked per instance unless in memory.
   Future<T> synchronized<T>(Future<T> Function() action) async {
-    var path = getPath() ?? getDatabase()?.path;
+    String path = await getPath() ?? getDatabase()?.path;
     if (isInMemory(path)) {
       return await action();
     }
@@ -287,8 +288,14 @@ extension SqfliteFfiMethodCallHandler on FfiMethodCall {
   }
 
   /// Default database path.
-  String getDatabasesPath() {
-    return absolute(join('.dart_tool', 'sqflite_common_ffi', 'databases'));
+  Future<String> getDatabasesPath() async {
+    // Tizen is a Linux distribution, but it has an app model similar to other mobile platforms.
+    // So we need to get the path writable suitably on running applications
+    // I think the path provider is a good solution.
+    Directory appDocDir = await getApplicationDocumentsDirectory();
+    String dataBasePath = appDocDir.path;
+    dataBasePath += '.dart_tool/sqflite_common_ffi/databases';
+    return dataBasePath;
   }
 
   /// Handle open database.
@@ -409,12 +416,12 @@ extension SqfliteFfiMethodCallHandler on FfiMethodCall {
   }
 
   /// Return the path argument if any
-  String getPath() {
+  Future<String> getPath() async {
     var arguments = this.arguments;
     if (arguments is Map) {
       var path = arguments['path'] as String;
       if ((path != null) && !isInMemory(path) && isRelative(path)) {
-        path = join(getDatabasesPath(), path);
+        path = join(await getDatabasesPath(), path);
       }
       return path;
     }
@@ -660,7 +667,7 @@ extension SqfliteFfiMethodCallHandler on FfiMethodCall {
 
   /// Handle delete database.
   Future<void> handleDeleteDatabase() async {
-    var path = getPath();
+    String path = await getPath();
 
     var singleInstanceDatabase = ffiSingleInstanceDbs[path];
     if (singleInstanceDatabase != null) {
@@ -676,7 +683,7 @@ extension SqfliteFfiMethodCallHandler on FfiMethodCall {
 
   /// Handle `databaseExists`.
   Future<bool> handleDatabaseExists() async {
-    var path = getPath();
+    String path = await getPath();
     // Ignore failure
     try {
       return (File(path)).existsSync();
